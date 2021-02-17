@@ -71,3 +71,39 @@ func NewImageRecord(fullpath string) ImageRecord {
 	res.source = srcimg
 	return res
 }
+
+func (ik ImageKeeper) getAround(filename string, width int) []string {
+	var pos int = -1
+	var lwidth int = width
+	var rwidth int = width
+	var res []string
+	if width*2+1 > len(ik.filelist) {
+		return res
+	}
+	for i, v := range ik.filelist {
+		if v == filename {
+			pos = i
+			break
+		}
+	}
+	if pos == -1 {
+		return res
+	}
+	ldif := 0 - (pos - lwidth)
+	if ldif > 0 {
+		lwidth -= ldif
+		rwidth += ldif
+	}
+	rdif := (pos + rwidth) - (len(ik.filelist) - 1)
+	if rdif > 0 {
+		rwidth -= rdif
+		lwidth += rdif
+	}
+	for i := pos - lwidth; i < pos; i++ {
+		res = append(res, ik.filelist[i])
+	}
+	for i := pos + 1; i <= pos+rwidth; i++ {
+		res = append(res, ik.filelist[i])
+	}
+	return res
+}
