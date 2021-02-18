@@ -14,6 +14,7 @@ type ColorItem struct {
 		b float64
 	}
 	distances []float64 //distances between colors in cluster
+	distsum   float64
 }
 
 func NewColorItem(source color.RGBA) ColorItem {
@@ -110,23 +111,30 @@ func (cc *ColorCluster) add(rgba color.RGBA) {
 	cc.arr = append(cc.arr, ci)
 }
 
-//return 1) index of cluster center 2) index of farest color
-func (cc ColorCluster) getCenterAndTail() (int64, int64) {
-	type distItem struct {
-		index int64
-		dist  float64
-	}
-	var distArr []distItem = make([]distItem, len(cc.arr), len(cc.arr))
-	for i, _ := range distArr {
-		distArr[i].index = -1
-		distArr[i].dist = math.MaxFloat64
-	}
+type distItem struct {
+	index int64
+	dist  float64
+}
+
+func (cc *ColorCluster) sumDist() {
 	for i, ci := range cc.arr {
 		var d float64
 		for _, s := range ci.distances {
 			d += s
 		}
-		di := distItem{int64(i), d}
+		cc.arr[i].distsum = d
+	}
+}
+
+func (cc *ColorCluster) getCenterAndTail() []distItem {
+	var distArr []distItem = make([]distItem, len(cc.arr), len(cc.arr))
+	cc.sumDist()
+	for i, _ := range distArr {
+		distArr[i].index = -1
+		distArr[i].dist = math.MaxFloat64
+	}
+	for i, ci := range cc.arr {
+		di := distItem{int64(i), ci.distsum}
 		//fill-sort distance array
 		for j, _ := range distArr {
 			if distArr[j].dist > di.dist {
@@ -134,5 +142,21 @@ func (cc ColorCluster) getCenterAndTail() (int64, int64) {
 			}
 		}
 	}
-	return distArr[0].index, distArr[len(distArr)-1].index
+	return distArr
+}
+
+func (cc *ColorCluster) decide(relation float64) color.RGBA {
+	distArr := cc.getCenterAndTail()
+	if distArr[0].index == 0 {
+		return cc.arr[0].source
+	}
+	d := cc.arr[0].distsum
+	d0 := distArr[0].dist
+	d1 := distArr[len(distArr)-1].dist
+	//if first element of cluster is near to center - do nothing
+	if d < d0+(d1-d0)*relation {
+		return cc.arr[0].source
+	}
+	//if first element too far - change to cluster center
+	return cc.arr[distArr[0].index].source
 }

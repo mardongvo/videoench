@@ -6,6 +6,7 @@ import (
 	_ "image/png"
 	"os"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -16,17 +17,30 @@ type ImageRecord struct {
 
 type ImageKeeper struct {
 	path      string                 //path to directory with images
-	filelist  []string               //ordered list of files to find neightbors
+	filelist  sort.StringSlice       //ordered list of files to find neightbors
 	resources map[string]ImageRecord //allocated resources
 	mtx       sync.Mutex
 }
 
-func NewImageKeeper(path string) ImageKeeper {
+func NewImageKeeper(path string) *ImageKeeper {
 	var res ImageKeeper
 	res.path = path
-	//TODO: list path
+	if res.path > "" {
+		entries, err := os.ReadDir(res.path)
+		if err != nil {
+			fmt.Printf("ReadDir (%s) error: %v", res.path, err)
+		} else {
+			for _, ent := range entries {
+				if ent.IsDir() {
+					continue
+				}
+				res.filelist = append(res.filelist, ent.Name())
+			}
+			sort.Sort(res.filelist)
+		}
+	}
 	res.resources = make(map[string]ImageRecord)
-	return res
+	return &res
 }
 
 func (ik *ImageKeeper) sieze(filename string) image.Image {
@@ -38,6 +52,7 @@ func (ik *ImageKeeper) sieze(filename string) image.Image {
 		ir = ik.resources[filename]
 	}
 	ir.usecount++
+	ik.resources[filename] = ir
 	return ir.source
 }
 
@@ -50,6 +65,7 @@ func (ik *ImageKeeper) release(filename string) {
 		return
 	}
 	ir.usecount--
+	ik.resources[filename] = ir
 	if ir.usecount <= 0 {
 		delete(ik.resources, filename)
 	}
@@ -57,6 +73,7 @@ func (ik *ImageKeeper) release(filename string) {
 
 func NewImageRecord(fullpath string) ImageRecord {
 	var res ImageRecord
+	res.source = image.NewRGBA(image.Rect(0, 0, 0, 0))
 	rdr, err := os.Open(fullpath)
 	if err != nil {
 		fmt.Printf("open image error(%s): %v\n", fullpath, err)
@@ -72,7 +89,7 @@ func NewImageRecord(fullpath string) ImageRecord {
 	return res
 }
 
-func (ik ImageKeeper) getAround(filename string, width int) []string {
+func (ik *ImageKeeper) getAround(filename string, width int) []string {
 	var pos int = -1
 	var lwidth int = width
 	var rwidth int = width

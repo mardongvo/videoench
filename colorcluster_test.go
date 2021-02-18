@@ -11,9 +11,9 @@ func TestSort(t *testing.T) {
 	cc.arr = append(cc.arr, ColorItem{distances: []float64{1}}) //1
 	cc.arr = append(cc.arr, ColorItem{distances: []float64{3}}) //2
 	cc.arr = append(cc.arr, ColorItem{distances: []float64{2}}) //3
-	i1, i2 := cc.getCenterAndTail()
-	if (i1 != 1) || (i2 != 2) {
-		t.Fatalf("getCenterAndTail: unexpected %v and %v", i1, i2)
+	distArr := cc.getCenterAndTail()
+	if (distArr[0].index != 1) || (distArr[len(distArr)-1].index != 2) {
+		t.Fatalf("getCenterAndTail: unexpected %v and %v", distArr[0].index, distArr[len(distArr)-1].index)
 	}
 }
 
